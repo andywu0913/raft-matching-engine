@@ -1,6 +1,8 @@
 // Package raftnode wires up hashicorp/raft with a BoltStore-backed log/stable
-// store, a FileSnapshotStore, and a TCP transport. For phase 1 it bootstraps
-// a single-node cluster on first start; multi-node Join is deferred.
+// store, a FileSnapshotStore, and a TCP transport. Supports three first-start
+// modes via Config: Bootstrap (single-node seed), Join (handled by main after
+// startup), and Recover (force a single-node cluster from existing on-disk
+// state — used for catastrophic loss when the original peers are gone).
 package raftnode
 
 import (
@@ -13,6 +15,8 @@ import (
 
 	"github.com/hashicorp/raft"
 	boltdb "github.com/hashicorp/raft-boltdb/v2"
+
+	"raft-matching-engine/internal/fsm"
 )
 
 type Config struct {
@@ -21,6 +25,7 @@ type Config struct {
 	AdvertiseAddr string // optional: address peers should use to reach us; falls back to BindAddr
 	DataDir      string // where logs, stable store, and snapshots live
 	Bootstrap    bool   // first-time single-node bootstrap
+	Recover       bool   // force a single-node cluster from existing data dir (DR)
 
 	// Tuning knobs (optional; sensible defaults applied if zero).
 	SnapshotInterval  time.Duration
@@ -33,7 +38,7 @@ type Node struct {
 	dataDir   string
 }
 
-func New(cfg Config, fsm raft.FSM) (*Node, error) {
+func New(cfg Config, runtimeFSM *fsm.FSM) (*Node, error) {
 	if cfg.NodeID == "" {
 		return nil, errors.New("raftnode: NodeID required")
 	}
@@ -84,7 +89,31 @@ func New(cfg Config, fsm raft.FSM) (*Node, error) {
 		return nil, fmt.Errorf("tcp transport: %w", err)
 	}
 
-	r, err := raft.NewRaft(rcfg, fsm, logStore, stableStore, snapStore, transport)
+	// Recovery runs BEFORE NewRaft. raft.RecoverCluster reads existing state,
+	// rewrites the cluster configuration to a single-node config (this node),
+	// writes a fresh snapshot, and truncates the log. Per the godoc the FSM
+	// it touches is left in an unusable state, so we feed it a throwaway and
+	// let NewRaft restore the runtime FSM from the recovered snapshot.
+	if cfg.Recover {
+		hasState, err := raft.HasExistingState(logStore, stableStore, snapStore)
+		if err != nil {
+			return nil, fmt.Errorf("recover: check existing state: %w", err)
+		}
+		if !hasState {
+			return nil, errors.New("recover: data dir has no existing raft state")
+		}
+		recoverConfig := raft.Configuration{Servers: []raft.Server{{
+			Suffrage: raft.Voter,
+			ID:       rcfg.LocalID,
+			Address:  transport.LocalAddr(),
+		}}}
+		throwaway := fsm.New()
+		if err := raft.RecoverCluster(rcfg, throwaway, logStore, stableStore, snapStore, transport, recoverConfig); err != nil {
+			return nil, fmt.Errorf("recover cluster: %w", err)
+		}
+	}
+
+	r, err := raft.NewRaft(rcfg, runtimeFSM, logStore, stableStore, snapStore, transport)
 	if err != nil {
 		return nil, fmt.Errorf("new raft: %w", err)
 	}

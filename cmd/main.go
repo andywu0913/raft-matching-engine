@@ -41,11 +41,22 @@ func main() {
 		dataDir   = flag.String("data-dir", "./data", "raft data directory root")
 		bootstrap = flag.Bool("bootstrap", false, "bootstrap a single-node cluster (first node only)")
 		joinAddr  = flag.String("join", "", "gRPC address of an existing leader to join")
+		recover   = flag.Bool("recover", false, "force a single-node cluster from existing data-dir (disaster recovery)")
 	)
 	flag.Parse()
 
-	if *bootstrap && *joinAddr != "" {
-		log.Fatal("--bootstrap and --join are mutually exclusive")
+	modes := 0
+	if *bootstrap {
+		modes++
+	}
+	if *joinAddr != "" {
+		modes++
+	}
+	if *recover {
+		modes++
+	}
+	if modes > 1 {
+		log.Fatal("--bootstrap, --join, and --recover are mutually exclusive")
 	}
 
 	absDataDir, err := filepath.Abs(*dataDir)
@@ -63,6 +74,7 @@ func main() {
 		BindAddr:  *raftAddr,
 		DataDir:   nodeDataDir,
 		Bootstrap: *bootstrap,
+		Recover:   *recover,
 	}, f)
 	if err != nil {
 		log.Fatalf("raft node: %v", err)

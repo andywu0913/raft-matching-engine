@@ -90,6 +90,36 @@ restart raft picks up the existing config from disk. Writes to a follower
 return `FailedPrecondition: not_leader` with a `NotLeader` status detail
 carrying the leader's raft address.
 
+## Disaster recovery (foreign-WAL restore)
+
+If the original cluster is lost (every node's hardware is gone) but you
+have a backup of one node's data dir, you can bring up a new single-node
+cluster from it:
+
+```bash
+# 1. Restore the data dir on the new machine. The subdirectory must match
+#    the new node-id you'll use:
+cp -R /backup/node1 /var/lib/menode/phoenix
+
+# 2. Start with --recover. raft.RecoverCluster rewrites the cluster
+#    configuration to [{phoenix, <new raft addr>}], writes a fresh snapshot,
+#    and truncates the log; NewRaft then restores the FSM from that snapshot.
+./bin/menode \
+  --node-id phoenix \
+  --raft-addr 10.0.0.99:7000 \
+  --grpc-addr 10.0.0.99:9000 \
+  --data-dir /var/lib/menode \
+  --recover
+```
+
+The recovered node becomes the leader of a single-node cluster with the
+order book, dedup cache, and `next_order_id` all intact. New peers can be
+brought back online via `--join` against the recovered leader's gRPC.
+
+`--recover` is **only** for catastrophic loss; using it on a live cluster
+will rewrite the cluster configuration and may cause split-brain.
+`--bootstrap`, `--join`, and `--recover` are mutually exclusive.
+
 ## Smoke test
 
 ```bash
@@ -127,6 +157,8 @@ grpcurl -plaintext -import-path proto -proto matchengine/v1/matchengine.proto \
 
 Implemented:
 - Multi-node raft cluster: bootstrap + `Join` RPC + leader failover
+- Disaster recovery: `--recover` rebuilds a single-node cluster from a
+  surviving data dir (book + dedup + order-id sequence intact)
 - `PlaceOrder`, `CancelOrder`, `LookupByRequestID`, `GetTopOfBook`
 - Limit + cancel; FIFO price-time priority
 - Idempotency (`(client_id, request_id)` dedup, replicated + snapshotted)
