@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/hashicorp/raft"
 	"google.golang.org/protobuf/proto"
@@ -147,6 +148,7 @@ func (s *fsmSnapshot) Release() {}
 // ----------------------------------------------------------------------------
 
 func (f *FSM) Restore(rc io.ReadCloser) error {
+	start := time.Now()
 	defer rc.Close()
 	data, err := io.ReadAll(rc)
 	if err != nil {
@@ -181,8 +183,9 @@ func (f *FSM) Restore(rc io.ReadCloser) error {
 		res := dedupResultFromProto(e)
 		f.dedup.put(e.ClientId, e.RequestId, res)
 	}
-	log.Printf("[fsm] RESTORE complete: applied_index=%d next_order_id=%d books=%d dedup=%d",
-		f.appliedIdx, f.nextOrderID, len(f.books), len(f.dedup.entries))
+	log.Printf("[fsm] RESTORE complete: applied_index=%d next_order_id=%d books=%d dedup=%d bytes=%d (took %s)",
+		f.appliedIdx, f.nextOrderID, len(f.books), len(f.dedup.entries),
+		len(data), time.Since(start).Round(time.Millisecond))
 	return nil
 }
 

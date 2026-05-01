@@ -14,6 +14,7 @@ package fsm
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -32,18 +33,24 @@ const DefaultDedupTTL = 24 * time.Hour
 // gets a sweep. Driven off Apply count so it's deterministic across replicas.
 const dedupGCInterval = 4096
 
+// applyProgressInterval — how often Apply emits a progress log. Useful for
+// watching log replay on startup (no snapshot → raft replays the entire WAL
+// silently, this is the only way to see it happen).
+const applyProgressInterval = 10000
+
 
 // Compile-time assert FSM satisfies raft.FSM (Snapshot/Restore in snapshot.go).
 var _ raft.FSM = (*FSM)(nil)
 
 
 type FSM struct {
-	mu          sync.RWMutex
-	books       map[string]*Book
-	dedup       *dedupCache
-	nextOrderID uint64
-	appliedIdx  uint64
-	applyCount  uint64
+	mu           sync.RWMutex
+	books        map[string]*Book
+	dedup        *dedupCache
+	nextOrderID  uint64
+	appliedIdx   uint64
+	applyCount   uint64
+	firstApplyAt time.Time // wall-clock of the first Apply (used only for diagnostic logs)
 }
 
 func New() *FSM {
@@ -57,12 +64,12 @@ func New() *FSM {
 // raft.FSM: Apply
 // ----------------------------------------------------------------------------
 
-func (f *FSM) Apply(log *raft.Log) any {
+func (f *FSM) Apply(l *raft.Log) any {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	var entry pb.LogEntry
-	if err := proto.Unmarshal(log.Data, &entry); err != nil {
+	if err := proto.Unmarshal(l.Data, &entry); err != nil {
 		return ApplyResult{Err: "decode: " + err.Error()}
 	}
 
@@ -70,7 +77,7 @@ func (f *FSM) Apply(log *raft.Log) any {
 	// return the cached result without touching the book. This is what makes
 	// "client retries the same request_id" safe.
 	if cached, ok := f.dedup.get(entry.ClientId, entry.RequestId); ok {
-		f.appliedIdx = log.Index
+		f.appliedIdx = l.Index
 		return cached
 	}
 
@@ -86,8 +93,16 @@ func (f *FSM) Apply(log *raft.Log) any {
 	res.WrittenAtNs = entry.TsNanos
 	f.dedup.put(entry.ClientId, entry.RequestId, res)
 
-	f.appliedIdx = log.Index
+	f.appliedIdx = l.Index
 	f.applyCount++
+	if f.applyCount == 1 {
+		f.firstApplyAt = time.Now()
+		log.Printf("[fsm] first apply: log_index=%d", l.Index)
+	}
+	if f.applyCount%applyProgressInterval == 0 {
+		log.Printf("[fsm] applied %d entries (cumulative %s, last_index=%d)",
+			f.applyCount, time.Since(f.firstApplyAt).Round(time.Millisecond), l.Index)
+	}
 	if f.applyCount%dedupGCInterval == 0 {
 		f.dedup.evictOlderThan(entry.TsNanos)
 	}
