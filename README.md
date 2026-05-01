@@ -55,13 +55,13 @@ internal/
 
 ```bash
 buf generate    # only when proto changes
-go build -o ./bin/menode ./cmd
+go build -o ./bin/matching_engine ./cmd
 ```
 
 ## Run (single-node)
 
 ```bash
-./bin/menode \
+./bin/matching_engine \
   --node-id node1 \
   --raft-addr 127.0.0.1:7000 \
   --grpc-addr 127.0.0.1:9000 \
@@ -76,13 +76,13 @@ book + dedup cache are rebuilt from the raft log.
 
 ```bash
 # Terminal 1 — bootstrap leader
-./bin/menode --node-id node1 --raft-addr 127.0.0.1:7001 --grpc-addr 127.0.0.1:9001 --bootstrap
+./bin/matching_engine --node-id node1 --raft-addr 127.0.0.1:7001 --grpc-addr 127.0.0.1:9001 --bootstrap
 
 # Terminal 2 — join via node1's gRPC
-./bin/menode --node-id node2 --raft-addr 127.0.0.1:7002 --grpc-addr 127.0.0.1:9002 --join 127.0.0.1:9001
+./bin/matching_engine --node-id node2 --raft-addr 127.0.0.1:7002 --grpc-addr 127.0.0.1:9002 --join 127.0.0.1:9001
 
 # Terminal 3 — join via node1's gRPC
-./bin/menode --node-id node3 --raft-addr 127.0.0.1:7003 --grpc-addr 127.0.0.1:9003 --join 127.0.0.1:9001
+./bin/matching_engine --node-id node3 --raft-addr 127.0.0.1:7003 --grpc-addr 127.0.0.1:9003 --join 127.0.0.1:9001
 ```
 
 `--bootstrap` and `--join` are only consulted on a node's first start; on
@@ -99,16 +99,16 @@ cluster from it:
 ```bash
 # 1. Restore the data dir on the new machine. The subdirectory must match
 #    the new node-id you'll use:
-cp -R /backup/node1 /var/lib/menode/phoenix
+cp -R /backup/node1 /var/lib/matching_engine/phoenix
 
 # 2. Start with --recover. raft.RecoverCluster rewrites the cluster
 #    configuration to [{phoenix, <new raft addr>}], writes a fresh snapshot,
 #    and truncates the log; NewRaft then restores the FSM from that snapshot.
-./bin/menode \
+./bin/matching_engine \
   --node-id phoenix \
   --raft-addr 10.0.0.99:7000 \
   --grpc-addr 10.0.0.99:9000 \
-  --data-dir /var/lib/menode \
+  --data-dir /var/lib/matching_engine \
   --recover
 ```
 

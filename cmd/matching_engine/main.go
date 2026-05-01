@@ -1,4 +1,4 @@
-// menode is a single-binary match-engine node.
+// matching_engine is a single-binary match-engine node.
 //
 // Cluster formation:
 //
@@ -99,7 +99,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("menode %s: raft=%s grpc=%s data=%s", *nodeID, *raftAddr, *grpcAddr, nodeDataDir)
+		log.Printf("matching_engine %s: raft=%s grpc=%s data=%s", *nodeID, *raftAddr, *grpcAddr, nodeDataDir)
 		if err := gsrv.Serve(lis); err != nil {
 			log.Fatalf("grpc serve: %v", err)
 		}
