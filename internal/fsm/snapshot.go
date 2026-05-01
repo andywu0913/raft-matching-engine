@@ -3,6 +3,7 @@ package fsm
 import (
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/hashicorp/raft"
 	"google.golang.org/protobuf/proto"
@@ -49,6 +50,8 @@ func (f *FSM) Snapshot() (raft.FSMSnapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal snapshot: %w", err)
 	}
+	log.Printf("[fsm] SNAPSHOT taken: applied_index=%d next_order_id=%d books=%d dedup=%d bytes=%d",
+		f.appliedIdx, f.nextOrderID, len(f.books), len(f.dedup.entries), len(data))
 	return &fsmSnapshot{data: data}, nil
 }
 
@@ -178,6 +181,8 @@ func (f *FSM) Restore(rc io.ReadCloser) error {
 		res := dedupResultFromProto(e)
 		f.dedup.put(e.ClientId, e.RequestId, res)
 	}
+	log.Printf("[fsm] RESTORE complete: applied_index=%d next_order_id=%d books=%d dedup=%d",
+		f.appliedIdx, f.nextOrderID, len(f.books), len(f.dedup.entries))
 	return nil
 }
 

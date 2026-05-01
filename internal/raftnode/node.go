@@ -20,16 +20,18 @@ import (
 )
 
 type Config struct {
-	NodeID       string
-	BindAddr     string // raft TCP listen address, e.g. 127.0.0.1:7000
+	NodeID        string
+	BindAddr      string // raft TCP listen address, e.g. 127.0.0.1:7000
 	AdvertiseAddr string // optional: address peers should use to reach us; falls back to BindAddr
-	DataDir      string // where logs, stable store, and snapshots live
-	Bootstrap    bool   // first-time single-node bootstrap
+	DataDir       string // where logs, stable store, and snapshots live
+	Bootstrap     bool   // first-time single-node bootstrap
 	Recover       bool   // force a single-node cluster from existing data dir (DR)
 
 	// Tuning knobs (optional; sensible defaults applied if zero).
 	SnapshotInterval  time.Duration
 	SnapshotThreshold uint64
+	TrailingLogs      uint64 // entries kept in the log AFTER a snapshot;
+	                         // smaller = more aggressive log truncation
 }
 
 type Node struct {
@@ -59,6 +61,9 @@ func New(cfg Config, runtimeFSM *fsm.FSM) (*Node, error) {
 	}
 	if cfg.SnapshotThreshold > 0 {
 		rcfg.SnapshotThreshold = cfg.SnapshotThreshold
+	}
+	if cfg.TrailingLogs > 0 {
+		rcfg.TrailingLogs = cfg.TrailingLogs
 	}
 
 	// Log + stable stores share a single bolt file for the POC.
