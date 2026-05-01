@@ -1,0 +1,16 @@
+# Build artifacts
+/bin/
+
+# Raft state (logs, snapshots, bolt files)
+/data/
+
+# Go test/profile outputs
+*.test
+*.out
+coverage.txt
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

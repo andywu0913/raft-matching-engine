@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package matchengine.v1;
+
+option go_package = "raft-matching-engine/gen/matchengine/v1;matchenginev1";
+
+// ============================================================================
+// Service surface
+// ============================================================================
+
+service MatchEngineService {
+  // Mutating ops — leader only.
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // Idempotency resolver — leader only.
+  rpc LookupByRequestID(LookupByRequestIDRequest) returns (LookupByRequestIDResponse);
+
+  // Reads — leader only for POC.
+  rpc GetTopOfBook(GetTopOfBookRequest) returns (GetTopOfBookResponse);
+
+  // Cluster admin — leader only.
+  rpc Join(JoinRequest) returns (JoinResponse);
+}
+
+message JoinRequest {
+  string node_id = 1;       // raft server ID of the joining node
+  string raft_address = 2;  // address peers will use to reach the joining node's raft port
+}
+
+message JoinResponse {}
+
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  SIDE_BUY = 1;
+  SIDE_SELL = 2;
+}
+
+message Trade {
+  uint64 maker_order_id = 1;
+  uint64 taker_order_id = 2;
+  int64 price = 3;
+  int64 quantity = 4;
+  int64 ts_nanos = 5;
+}
+
+message PlaceOrderRequest {
+  // client_id is NOT carried in the body — it's read from the x-client-id
+  // metadata header at the gateway. Using the body would let one client
+  // forge requests under another client's idempotency namespace.
+  string request_id = 1;
+  string symbol = 2;
+  Side side = 3;
+  int64 price = 4;     // ticks
+  int64 quantity = 5;  // lots
+}
+
+message PlaceOrderResponse {
+  uint64 order_id = 1;
+  int64 filled_qty = 2;
+  int64 resting_qty = 3;
+  repeated Trade trades = 4;
+  bool replayed = 5; // true when served from the dedup cache
+}
+
+message CancelOrderRequest {
+  string request_id = 1;
+  string symbol = 2;
+  uint64 order_id = 3;
+}
+
+message CancelOrderResponse {
+  uint64 order_id = 1;
+  bool replayed = 2;
+}
+
+message LookupByRequestIDRequest {
+  string request_id = 1;
+}
+
+message LookupByRequestIDResponse {
+  bool found = 1;
+  oneof result {
+    PlaceOrderResponse place = 2;
+    CancelOrderResponse cancel = 3;
+    string error = 4;
+  }
+}
+
+message GetTopOfBookRequest {
+  string symbol = 1;
+  int32 depth = 2;
+}
+
+message PriceLevel {
+  int64 price = 1;
+  int64 total_quantity = 2;
+  int32 order_count = 3;
+}
+
+message GetTopOfBookResponse {
+  string symbol = 1;
+  repeated PriceLevel bids = 2; // highest first
+  repeated PriceLevel asks = 3; // lowest first
+}
+
+// Returned in google.rpc.Status details when a write hits a follower.
+message NotLeader {
+  string leader_id = 1;
+  string leader_address = 2;
+}
+
+// ============================================================================
+// Raft log entry (what gets serialized into raft.Apply data)
+// ============================================================================
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_PLACE_ORDER = 1;
+  EVENT_TYPE_CANCEL_ORDER = 2;
+}
+
+message LogEntry {
+  EventType type = 1;
+  string client_id = 2;
+  string request_id = 3;
+  int64 ts_nanos = 4; // set ONCE at intake, identical on every replay
+  oneof payload {
+    PlaceOrderPayload place = 5;
+    CancelOrderPayload cancel = 6;
+  }
+}
+
+message PlaceOrderPayload {
+  string symbol = 1;
+  Side side = 2;
+  int64 price = 3;
+  int64 quantity = 4;
+}
+
+message CancelOrderPayload {
+  string symbol = 1;
+  uint64 order_id = 2;
+}
+
+// ============================================================================
+// Snapshot envelope (what FSM.Snapshot writes into the SnapshotSink)
+// ============================================================================
+
+message Snapshot {
+  uint64 applied_index = 1;
+  uint64 next_order_id = 2;
+  int64 ts_nanos = 3;
+  repeated SnapshotBook books = 4;
+  repeated SnapshotDedupEntry dedup = 5;
+}
+
+message SnapshotBook {
+  string symbol = 1;
+  repeated SnapshotLevel bids = 2;
+  repeated SnapshotLevel asks = 3;
+}
+
+message SnapshotLevel {
+  int64 price = 1;
+  repeated SnapshotOrder orders = 2; // FIFO order
+}
+
+message SnapshotOrder {
+  uint64 id = 1;
+  string client_id = 2;
+  int64 quantity = 3;
+  int64 ts_nanos = 4;
+}
+
+message SnapshotDedupEntry {
+  string client_id = 1;
+  string request_id = 2;
+  int64 expires_at_nanos = 3;
+  oneof result {
+    PlaceOrderResponse place = 4;
+    CancelOrderResponse cancel = 5;
+    string error = 6;
+  }
+}
