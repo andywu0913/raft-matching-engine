@@ -30,8 +30,6 @@ type Config struct {
 	// Tuning knobs (optional; sensible defaults applied if zero).
 	SnapshotInterval  time.Duration
 	SnapshotThreshold uint64
-	TrailingLogs      uint64 // entries kept in the log AFTER a snapshot;
-	                         // smaller = more aggressive log truncation
 }
 
 type Node struct {
@@ -61,9 +59,6 @@ func New(cfg Config, runtimeFSM *fsm.FSM) (*Node, error) {
 	}
 	if cfg.SnapshotThreshold > 0 {
 		rcfg.SnapshotThreshold = cfg.SnapshotThreshold
-	}
-	if cfg.TrailingLogs > 0 {
-		rcfg.TrailingLogs = cfg.TrailingLogs
 	}
 
 	// Log + stable stores share a single bolt file for the POC.

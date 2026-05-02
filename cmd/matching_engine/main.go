@@ -45,7 +45,6 @@ func main() {
 
 		snapshotThreshold = flag.Uint64("snapshot-threshold", 0, "log entries since last snapshot before raft takes a new one (0 = raft default 8192)")
 		snapshotInterval  = flag.Duration("snapshot-interval", 0, "min wall time between snapshot checks (0 = raft default 120s)")
-		trailingLogs      = flag.Uint64("trailing-logs", 0, "log entries kept after a snapshot (0 = raft default 10240)")
 	)
 	flag.Parse()
 
@@ -81,7 +80,6 @@ func main() {
 		Recover:           *recover,
 		SnapshotThreshold: *snapshotThreshold,
 		SnapshotInterval:  *snapshotInterval,
-		TrailingLogs:      *trailingLogs,
 	}, f)
 	if err != nil {
 		log.Fatalf("raft node: %v", err)

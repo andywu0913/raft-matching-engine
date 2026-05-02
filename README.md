@@ -76,19 +76,26 @@ book + dedup cache are rebuilt from the raft log.
 
 ```bash
 # Terminal 1 — bootstrap leader
-./bin/matching_engine --node-id node1 --raft-addr 127.0.0.1:7001 --grpc-addr 127.0.0.1:9001 --bootstrap
+./bin/matching_engine --node-id node1 --raft-addr 127.0.0.1:7001 --grpc-addr 127.0.0.1:9001 \
+  --snapshot-threshold 8192 --snapshot-interval 60s \
+  --bootstrap
 
 # Terminal 2 — join via node1's gRPC
-./bin/matching_engine --node-id node2 --raft-addr 127.0.0.1:7002 --grpc-addr 127.0.0.1:9002 --join 127.0.0.1:9001
+./bin/matching_engine --node-id node2 --raft-addr 127.0.0.1:7002 --grpc-addr 127.0.0.1:9002 \
+  --snapshot-threshold 8192 --snapshot-interval 60s \
+  --join 127.0.0.1:9001
 
 # Terminal 3 — join via node1's gRPC
-./bin/matching_engine --node-id node3 --raft-addr 127.0.0.1:7003 --grpc-addr 127.0.0.1:9003 --join 127.0.0.1:9001
+./bin/matching_engine --node-id node3 --raft-addr 127.0.0.1:7003 --grpc-addr 127.0.0.1:9003 \
+  --snapshot-threshold 8192 --snapshot-interval 60s \
+  --join 127.0.0.1:9001
 ```
 
-`--bootstrap` and `--join` are only consulted on a node's first start; on
-restart raft picks up the existing config from disk. Writes to a follower
-return `FailedPrecondition: not_leader` with a `NotLeader` status detail
-carrying the leader's raft address.
+`--snapshot-threshold`: Log entries since the last snapshot before raft considers taking a new one. Set lower to snapshot more aggressively (smaller WAL, faster recovery, more I/O).
+
+`--snapshot-interval`: Wall-clock period between snapshot eligibility checks (with jitter). Set lower to react faster to threshold breaches under load; set higher to amortize fsync cost.
+
+`--bootstrap` and `--join` are only consulted on a node's first start; on restart raft picks up the existing config from disk. Writes to a follower return `FailedPrecondition: not_leader` with a `NotLeader` status detail carrying the leader's raft address.
 
 ## Disaster recovery (foreign-WAL restore)
 
