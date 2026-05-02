@@ -48,7 +48,6 @@ func match(book *Book, taker *Order, crosses func(takerPx, makerPx int64) bool) 
 			if maker.Qty == 0 {
 				best.unlink(maker)
 				delete(book.Orders, maker.ID)
-				// pool release deferred to caller / future optimization
 			}
 		}
 
