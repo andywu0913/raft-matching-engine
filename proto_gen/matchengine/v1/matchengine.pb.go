@@ -1658,7 +1658,7 @@ const file_matchengine_v1_matchengine_proto_rawDesc = "" +
 	"\vCancelOrder\x12\".matchengine.v1.CancelOrderRequest\x1a#.matchengine.v1.CancelOrderResponse\x12h\n" +
 	"\x11LookupByRequestID\x12(.matchengine.v1.LookupByRequestIDRequest\x1a).matchengine.v1.LookupByRequestIDResponse\x12Y\n" +
 	"\fGetTopOfBook\x12#.matchengine.v1.GetTopOfBookRequest\x1a$.matchengine.v1.GetTopOfBookResponse\x12A\n" +
-	"\x04Join\x12\x1b.matchengine.v1.JoinRequest\x1a\x1c.matchengine.v1.JoinResponseB7Z5raft-matching-engine/gen/matchengine/v1;matchenginev1b\x06proto3"
+	"\x04Join\x12\x1b.matchengine.v1.JoinRequest\x1a\x1c.matchengine.v1.JoinResponseB=Z;raft-matching-engine/proto_gen/matchengine/v1;matchenginev1b\x06proto3"
 
 var (
 	file_matchengine_v1_matchengine_proto_rawDescOnce sync.Once

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package matchengine.v1;
 
-option go_package = "raft-matching-engine/gen/matchengine/v1;matchenginev1";
+option go_package = "raft-matching-engine/proto_gen/matchengine/v1;matchenginev1";
 
 // ============================================================================
 // Service surface

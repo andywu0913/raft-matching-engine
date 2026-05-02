@@ -41,14 +41,14 @@ ApplyResult                 ← back to the gRPC handler → response
 ## Project layout
 
 ```
-proto/matchengine/v1/    .proto definitions (service + log entry + snapshot)
-gen/matchengine/v1/      buf-generated Go code
-cmd/                     main binary entry point
+proto/matchengine/v1/     .proto definitions (service + log entry + snapshot)
+proto_gen/matchengine/v1/ buf-generated Go code
+cmd/                      main binary entry point
 internal/
-  auth/                  x-client-id header (POC stub)
-  fsm/                   raft.FSM, order book, dedup, snapshot
-  raftnode/              hashicorp/raft setup (bolt + file snapshot + tcp)
-  server/                gRPC handlers, leader check, validation
+  auth/                   x-client-id header (POC stub)
+  fsm/                    raft.FSM, order book, dedup, snapshot
+  raftnode/               hashicorp/raft setup (bolt + file snapshot + tcp)
+  server/                 gRPC handlers, leader check, validation
 ```
 
 ## Build

@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/raft"
 	"google.golang.org/protobuf/proto"
 
-	pb "raft-matching-engine/gen/matchengine/v1"
+	pb "raft-matching-engine/proto_gen/matchengine/v1"
 )
 
 // DefaultDedupTTL — how long an idempotent result is remembered. 24h is a

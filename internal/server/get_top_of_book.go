@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "raft-matching-engine/gen/matchengine/v1"
+	pb "raft-matching-engine/proto_gen/matchengine/v1"
 	"raft-matching-engine/internal/fsm"
 )
 

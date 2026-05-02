@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/raft"
 	"google.golang.org/protobuf/proto"
 
-	pb "raft-matching-engine/gen/matchengine/v1"
+	pb "raft-matching-engine/proto_gen/matchengine/v1"
 )
 
 // Snapshot captures a point-in-time copy of FSM state. Per raft contract,

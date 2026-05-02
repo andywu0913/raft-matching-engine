@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	pb "raft-matching-engine/gen/matchengine/v1"
+	pb "raft-matching-engine/proto_gen/matchengine/v1"
 	"raft-matching-engine/internal/fsm"
 	"raft-matching-engine/internal/raftnode"
 )

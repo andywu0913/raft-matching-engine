@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
-	pb "raft-matching-engine/gen/matchengine/v1"
+	pb "raft-matching-engine/proto_gen/matchengine/v1"
 )
 
 func main() {
