@@ -87,7 +87,7 @@ func main() {
 
 	srv := server.New(rn, f)
 
-	gsrv := grpc.NewServer()
+	gsrv := grpc.NewServer(grpc.UnaryInterceptor(server.LoggingInterceptor))
 	pb.RegisterMatchEngineServiceServer(gsrv, srv)
 	reflection.Register(gsrv)
 
